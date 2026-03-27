@@ -3,11 +3,5 @@ dns:
 id: wm37vl1m
 
 project:
-  name: demo-wm37vl1m
-  driver: vercel
-  stack: nextjs-ts
   source:
-    provider: github
-    repo: windsorcli/apps
     root_directory: demo
-    production_branch: main
