@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  security-events: write
+  checks: write
+  packages: write
+
+env:
+  WINDSOR_PROJECT_ROOT: ${{ github.workspace }}
+
+jobs:
+  static-checks:
+    name: Static Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.x"
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: yamllint .
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          shell_files="$(find . -name '*.sh' -print)"
+          if [ -n "$shell_files" ]; then
+            echo "$shell_files" | xargs shellcheck
+          else
+            echo "No shell scripts found to check"
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.8.5
+
+      - name: Run terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: Checkov GitHub Action
+        uses: bridgecrewio/checkov-action@68260132005eaae0e6f84c7a73cc3b1532f678bf # v12.3058.0
+        with:
+          directory: ./terraform
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4.31.9
+        with:
+          sarif_file: results.sarif
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.8.5
+
+      - name: Install Windsor CLI
+        uses: windsorcli/action@a829ee3c5d9826fd0b31d5e730edcd515644d866 # v0.5.1
+        with:
+          ref: main
+          context: demo
+
+      - name: Run Windsor blueprint tests
+        run: windsor test
+
+      - name: Run Terraform tests
+        run: |
+          set -euo pipefail
+          testfiles="$(rg --files -g '**/test.tftest.hcl' terraform)"
+          if [ -z "$testfiles" ]; then
+            echo "No Terraform test files found."
+            exit 1
+          fi
+
+          while IFS= read -r testfile; do
+            testdir="$(dirname "$testfile")"
+            echo "Running terraform tests in $testdir"
+            (
+              cd "$testdir"
+              terraform init -input=false -reconfigure
+              terraform test -no-color
+            )
+          done <<< "$testfiles"
+
+  publish:
+    name: Publish OCI Package
+    runs-on: ubuntu-latest
+    needs:
+      - static-checks
+      - tests
+    if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && needs.static-checks.result == 'success' && needs.tests.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: 1.8.5
+
+      - name: Install Windsor CLI
+        uses: windsorcli/action@a829ee3c5d9826fd0b31d5e730edcd515644d866 # v0.5.1
+        with:
+          ref: main
+          context: demo
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish version tag to OCI registry
+        env:
+          TAG: ${{ github.ref_name }}
+        run: windsor push oci://ghcr.io/windsorcli/apps:${TAG}
+
+      - name: Publish latest tag
+        if: github.ref == 'refs/heads/main'
+        run: windsor push oci://ghcr.io/windsorcli/apps:latest
