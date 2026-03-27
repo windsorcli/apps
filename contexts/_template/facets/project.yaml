@@ -1,0 +1,76 @@
+kind: Facet
+apiVersion: blueprints.windsorcli.dev/v1alpha1
+metadata:
+  name: project
+  description: Application hosting facet with provider-specific drivers
+
+when: "${((project ?? apps ?? {}).enabled ?? true) == true}"
+
+config:
+- name: project_config
+  value: "${project ?? apps ?? {}}"
+- name: project_stack
+  value: "${project_config.stack ?? (project_config.preset == 'static' ? 'astro-ts' : (project_config.preset == 'api' ? 'node-ts' : 'nextjs-ts'))}"
+- name: project_user_env
+  value: ${project_config.env ?? project_config.environment_variables ?? []}
+- name: project_provenance_enabled
+  value: ${project_config.provenance.enabled ?? true}
+- name: project_vercel_targets
+  value: "${project_config.providers.vercel.targets ?? (project_config.providers.vercel.target != null ? [project_config.providers.vercel.target] : ['development', 'preview', 'production'])}"
+- name: project_preset
+  value:
+    framework: "${project_stack == 'astro-ts' ? 'astro' : (project_stack == 'node-ts' ? 'other' : (project_stack == 'remix-ts' ? 'remix' : 'nextjs'))}"
+    output_directory: "${project_stack == 'astro-ts' ? 'dist' : (project_stack == 'nextjs-ts' ? '.next' : null)}"
+- name: project_provenance_env
+  value:
+    - key: WINDSOR_CONTEXT
+      value: "${context}"
+      target: "${project_vercel_targets}"
+    - key: WINDSOR_CONTEXT_ID
+      value: "${id ?? context}"
+      target: "${project_vercel_targets}"
+    - key: WINDSOR_BLUEPRINT
+      value: project
+      target: "${project_vercel_targets}"
+    - key: WINDSOR_GIT_REPO
+      value: "${repository != null ? (repository.url ?? (project_config.source != null ? (project_config.source.repo ?? 'n/a') : 'n/a')) : (project_config.source != null ? (project_config.source.repo ?? 'n/a') : 'n/a')}"
+      target: "${project_vercel_targets}"
+    - key: WINDSOR_GIT_REF
+      value: "${repository != null ? ((repository.ref != null ? (repository.ref.branch ?? null) : null) ?? (project_config.source != null ? (project_config.source.production_branch ?? 'n/a') : 'n/a')) : (project_config.source != null ? (project_config.source.production_branch ?? 'n/a') : 'n/a')}"
+      target: "${project_vercel_targets}"
+
+terraform:
+- name: project
+  when: ((project_config.driver ?? 'vercel') == 'vercel')
+  path: project/vercel
+  inputs:
+    team_id: ${project_config.team_id ?? null}
+    project_name: "${project_config.name ?? (id != null ? (context + '-' + id) : context)}"
+    project_framework: ${project_config.overrides.framework ?? project_preset.framework}
+    project_root_directory: ${project_config.source.root_directory ?? null}
+    build_command: ${project_config.overrides.build_command ?? null}
+    install_command: ${project_config.overrides.install_command ?? null}
+    dev_command: ${project_config.overrides.dev_command ?? null}
+    ignore_command: ${project_config.overrides.ignore_command ?? null}
+    output_directory: ${project_config.overrides.output_directory ?? project_preset.output_directory}
+    node_version: ${project_config.overrides.node_version ?? null}
+
+    auto_assign_custom_domains: ${project_config.providers.vercel.auto_assign_custom_domains ?? project_config.policy.domain_auto_assign ?? true}
+    preview_deployments_disabled: ${project_config.providers.vercel.preview_deployments_disabled ?? ((project_config.policy.preview_mode ?? 'enabled') == 'disabled')}
+    public_source: ${project_config.providers.vercel.public_source ?? project_config.policy.public_source ?? false}
+    skew_protection: ${project_config.providers.vercel.skew_protection ?? null}
+    protection_bypass_for_automation: ${project_config.providers.vercel.protection_bypass_for_automation ?? project_config.policy.automation_bypass ?? false}
+    protection_bypass_for_automation_secret: ${project_config.providers.vercel.protection_bypass_for_automation_secret ?? null}
+    vercel_authentication_deployment_type: ${project_config.providers.vercel.vercel_authentication_deployment_type ?? null}
+    password_protection: ${project_config.providers.vercel.password_protection ?? null}
+    trusted_ips: ${project_config.providers.vercel.trusted_ips ?? null}
+    resource_config: ${project_config.providers.vercel.resource_config ?? null}
+
+    domains: ${project_config.domains ?? []}
+    environment_variables: "${concat(project_user_env, (project_provenance_enabled ? project_provenance_env : []))}"
+    git_repository: >-
+      ${(project_config.source != null && project_config.source.repo != null) || (repository != null && repository.url != null) ? {
+        "type": project_config.source != null ? (project_config.source.provider ?? "github") : "github",
+        "repo": project_config.source != null && project_config.source.repo != null ? project_config.source.repo : repository.url,
+        "production_branch": project_config.source != null && project_config.source.repo != null ? (project_config.source.production_branch ?? null) : (repository != null ? (repository.ref != null ? (repository.ref.branch ?? null) : null) : null)
+      } : null}

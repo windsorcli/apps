@@ -1,0 +1,28 @@
+# Common Terraform ignores
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terraform/
+/.terraform/
+/terraform.tfvars
+*.tfvars
+*.log
+
+
+# managed by windsor cli
+.windsor/
+.volumes/
+terraform/**/backend_override.tf
+contexts/**/.kube/
+contexts/**/.talos/
+contexts/**/.omni/
+contexts/**/.aws/
+contexts/**/.azure/
+contexts/**/.gcp/

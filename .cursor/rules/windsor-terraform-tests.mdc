@@ -1,0 +1,35 @@
+---
+description: Windsor Terraform test scenarios and assertions
+globs: terraform/**/*.{tf,tftest.hcl}
+alwaysApply: false
+---
+
+# Windsor Terraform Tests
+
+- Write tests in `test.tftest.hcl` using scenario-based runs and clear names.
+- Prefer `mock_provider` to isolate module logic from external systems.
+- Required scenario order:
+  - Minimal configuration first (required inputs only)
+  - Full configuration second (optional inputs enabled)
+- Then add targeted scenarios for complex behavior:
+  - Complex edge cases
+  - Terraform expression/function logic (locals, conditionals, merges, for-expressions)
+  - Combined negative validation test with `expect_failures` when validations exist
+- Assertions should validate observable outcomes:
+  - Resource presence/absence
+  - Attribute values derived from inputs
+  - Output values and invariants
+- Do not assert on incidental implementation details that are not module contract.
+- For validation rules, prefer one combined negative test that covers all relevant invalid inputs.
+- Use clear error messages in assertions and validation blocks so failures are actionable.
+
+## Test skeleton
+
+```hcl
+mock_provider "provider" {}
+
+run "minimal_configuration" {
+  command = plan
+  variables {}
+}
+```

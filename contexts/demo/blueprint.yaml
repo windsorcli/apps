@@ -1,0 +1,14 @@
+# This file selects and overrides components from underlying blueprint sources.
+# To see the fully rendered blueprint, run: windsor show blueprint
+kind: Blueprint
+apiVersion: blueprints.windsorcli.dev/v1alpha1
+metadata:
+  name: test
+  description: Blueprint for the test context
+repository:
+  url: github.com/windsorcli/apps
+  ref:
+    branch: main
+sources:
+- name: template
+  install: true

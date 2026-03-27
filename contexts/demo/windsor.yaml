@@ -1,0 +1,9 @@
+secrets:
+  onepassword:
+    vaults:
+      windsor:
+        url: windsorhotel.1password.com
+        name: Root
+
+environment:
+  VERCEL_API_TOKEN: '${{ op.windsor["Vercel API Key"].credential }}'

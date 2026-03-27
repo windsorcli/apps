@@ -1,0 +1,28 @@
+---
+description: Windsor Terraform module structure and style conventions
+globs: terraform/**/*.{tf,tftest.hcl,md}
+alwaysApply: false
+---
+
+# Windsor Terraform Style
+
+- Use underscore-only resource names; never use hyphens in Terraform identifiers.
+- Keep modules small and focused by system layer and implementation (`terraform/<layer>/<impl>`).
+- Avoid submodules unless resources are reused within the same parent module.
+- Never use third-party modules.
+- Prefer explicit variable passing between modules; avoid `terraform_remote_state`.
+- Avoid data sources for implicit cross-resource wiring when explicit references or variables are possible.
+- Parameterize user inputs with typed variables; do not hardcode provider/business values.
+- Mark secret-like inputs/outputs as `sensitive = true`.
+- Use concise section headers in `main.tf`:
+  - `Provider Configuration`
+  - Logical resource groups (for example `Project Resources`, `Domain Resources`, `Environment Variable Resources`)
+- Keep inline comments out of resource blocks; use block-level comments before resources when needed.
+- Use locals for repeated or complex expressions.
+- Use `depends_on` only for non-inferable dependencies.
+- Require standard module files:
+  - `main.tf`
+  - `variables.tf`
+  - `outputs.tf`
+  - `test.tftest.hcl`
+  - `README.md`

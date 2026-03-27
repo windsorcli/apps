@@ -1,0 +1,323 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://blueprints.windsorcli.dev/schemas/project.schema.json
+title: Project Context Schema
+type: object
+properties:
+  apps:
+    description: Deprecated alias for project configuration.
+    $ref: "#/$defs/project"
+    default:
+      enabled: true
+  project:
+    description: Project configuration.
+    $ref: "#/$defs/project"
+    default:
+      enabled: true
+additionalProperties: true
+$defs:
+  project:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        default: true
+      stack:
+        type: string
+        enum:
+          - nextjs-ts
+          - astro-ts
+          - node-ts
+          - remix-ts
+          - custom
+        default: nextjs-ts
+      runtime:
+        type: string
+        enum:
+          - nodejs22
+          - bun1
+        default: nodejs22
+      package_manager:
+        type: string
+        enum:
+          - pnpm
+          - npm
+          - yarn
+        default: pnpm
+      deployment_target:
+        type: string
+        enum:
+          - vercel
+        default: vercel
+      driver:
+        type: string
+        enum:
+          - vercel
+        default: vercel
+      preset:
+        type: string
+        enum:
+          - web
+          - static
+          - api
+        default: web
+      team_id:
+        type: string
+      name:
+        type: string
+        minLength: 1
+      source:
+        $ref: "#/$defs/source"
+      overrides:
+        $ref: "#/$defs/overrides"
+      policy:
+        $ref: "#/$defs/policy"
+      provenance:
+        $ref: "#/$defs/provenance"
+      providers:
+        type: object
+        properties:
+          vercel:
+            $ref: "#/$defs/vercel"
+        additionalProperties: true
+      domains:
+        type: array
+        items:
+          $ref: "#/$defs/domain"
+      env:
+        type: array
+        items:
+          $ref: "#/$defs/env"
+      environment_variables:
+        type: array
+        items:
+          $ref: "#/$defs/env"
+    additionalProperties: true
+
+  source:
+    type: object
+    properties:
+      provider:
+        type: string
+        enum:
+          - github
+          - gitlab
+          - bitbucket
+      repo:
+        type: string
+        minLength: 1
+      root_directory:
+        type: string
+      production_branch:
+        type: string
+    required:
+      - repo
+    additionalProperties: true
+
+  overrides:
+    type: object
+    properties:
+      framework:
+        type: string
+      build_command:
+        type: string
+      install_command:
+        type: string
+      dev_command:
+        type: string
+      ignore_command:
+        type: string
+      output_directory:
+        type: string
+      node_version:
+        type: string
+    additionalProperties: true
+
+  policy:
+    type: object
+    properties:
+      public_source:
+        type: boolean
+      domain_auto_assign:
+        type: boolean
+      preview_mode:
+        type: string
+        enum:
+          - enabled
+          - disabled
+      automation_bypass:
+        type: boolean
+    additionalProperties: true
+
+  provenance:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+        default: true
+    additionalProperties: true
+
+  vercel:
+    type: object
+    properties:
+      targets:
+        type: array
+        items:
+          type: string
+          enum:
+            - production
+            - preview
+            - development
+      target:
+        type: string
+        enum:
+          - production
+          - preview
+          - development
+      auto_assign_custom_domains:
+        type: boolean
+      preview_deployments_disabled:
+        type: boolean
+      public_source:
+        type: boolean
+      skew_protection:
+        type: string
+        enum:
+          - 30 minutes
+          - 12 hours
+          - 1 day
+          - 7 days
+      protection_bypass_for_automation:
+        type: boolean
+      protection_bypass_for_automation_secret:
+        type: string
+        minLength: 32
+        maxLength: 32
+      vercel_authentication_deployment_type:
+        type: string
+        enum:
+          - standard_protection_new
+          - standard_protection
+          - all_deployments
+          - only_preview_deployments
+          - none
+      password_protection:
+        type: object
+        properties:
+          deployment_type:
+            type: string
+            enum:
+              - standard_protection_new
+              - standard_protection
+              - all_deployments
+              - only_preview_deployments
+          password:
+            type: string
+        required:
+          - deployment_type
+          - password
+        additionalProperties: true
+      trusted_ips:
+        type: object
+        properties:
+          deployment_type:
+            type: string
+            enum:
+              - standard_protection_new
+              - standard_protection
+              - all_deployments
+              - only_production_deployments
+              - only_preview_deployments
+          protection_mode:
+            type: string
+            enum:
+              - trusted_ip_required
+              - trusted_ip_optional
+          addresses:
+            type: array
+            items:
+              type: object
+              properties:
+                value:
+                  type: string
+                note:
+                  type: string
+              required:
+                - value
+              additionalProperties: true
+        required:
+          - deployment_type
+          - addresses
+        additionalProperties: true
+      resource_config:
+        type: object
+        properties:
+          fluid:
+            type: boolean
+          function_default_cpu_type:
+            type: string
+            enum:
+              - standard_legacy
+              - standard
+              - performance
+          function_default_regions:
+            type: array
+            items:
+              type: string
+          function_default_timeout:
+            type: number
+        additionalProperties: true
+    additionalProperties: true
+
+  domain:
+    type: object
+    properties:
+      domain:
+        type: string
+        minLength: 1
+      git_branch:
+        type: string
+      custom_environment_id:
+        type: string
+      redirect:
+        type: string
+      redirect_status_code:
+        type: integer
+        enum:
+          - 301
+          - 302
+          - 307
+          - 308
+    required:
+      - domain
+    additionalProperties: true
+
+  env:
+    type: object
+    properties:
+      key:
+        type: string
+        minLength: 1
+      value:
+        type: string
+      target:
+        type: array
+        items:
+          type: string
+          enum:
+            - production
+            - preview
+            - development
+      custom_environment_ids:
+        type: array
+        items:
+          type: string
+      git_branch:
+        type: string
+      sensitive:
+        type: boolean
+      comment:
+        type: string
+    required:
+      - key
+      - value
+    additionalProperties: true

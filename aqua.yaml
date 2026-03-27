@@ -1,0 +1,7 @@
+registries:
+  - type: standard
+    ref: v4.445.0
+
+packages:
+  - name: hashicorp/terraform@v1.8.5
+  - name: pnpm/pnpm@v10.8.1
