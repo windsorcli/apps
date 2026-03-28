@@ -107,7 +107,7 @@ jobs:
       - name: Run Terraform tests
         run: |
           set -euo pipefail
-          testfiles="$(rg --files -g '**/test.tftest.hcl' terraform)"
+          testfiles="$(find terraform -type f -name 'test.tftest.hcl' -print)"
           if [ -z "$testfiles" ]; then
             echo "No Terraform test files found."
             exit 1
