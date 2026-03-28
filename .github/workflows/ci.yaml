@@ -71,7 +71,9 @@ jobs:
           terraform -chdir=terraform/project/vercel show -json tfplan.bin > terraform/project/vercel/tfplan.json
 
       - name: Run Checkov on Terraform plan
-        run: checkov -f terraform/project/vercel/tfplan.json --framework terraform_plan --config-file .checkov.yaml --output cli,sarif --output-file-path console,results.sarif --quiet --compact
+        run: |
+          checkov -f terraform/project/vercel/tfplan.json --framework terraform_plan --config-file .checkov.yaml --output cli --quiet --compact
+          checkov -f terraform/project/vercel/tfplan.json --framework terraform_plan --config-file .checkov.yaml --output sarif --output-file-path results.sarif --quiet --compact
 
       - name: Run Checkov secrets scan
         run: checkov -d . --framework secrets --config-file .checkov.yaml --output cli --quiet --compact
