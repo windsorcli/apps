@@ -3,6 +3,13 @@ $id: https://blueprints.windsorcli.dev/schemas/project.schema.json
 title: Project Context Schema
 type: object
 properties:
+  id:
+    description: Stable context identifier used in naming and provenance.
+    type: string
+  platform:
+    description: Optional platform selector for context composition.
+    type: string
+    default: none
   apps:
     description: Deprecated alias for project configuration.
     $ref: "#/$defs/project"
@@ -107,6 +114,7 @@ $defs:
         minLength: 1
       root_directory:
         type: string
+        default: app
       production_branch:
         type: string
     required:
