@@ -33,7 +33,7 @@ config:
         value: project
         target: "${project_vercel_targets}"
       - key: WINDSOR_GIT_REPO
-        value: "${repository != null ? (repository.url ?? (project_config.source != null ? (project_config.source.repo ?? 'n/a') : 'n/a')) : (project_config.source != null ? (project_config.source.repo ?? 'n/a') : 'n/a')}"
+        value: "${project_config.source != null ? (project_config.source.repo ?? (repository != null ? (repository.url ?? 'n/a') : 'n/a')) : (repository != null ? (repository.url ?? 'n/a') : 'n/a')}"
         target: "${project_vercel_targets}"
       - key: WINDSOR_GIT_REF
         value: "${repository != null ? ((repository.ref != null ? (repository.ref.branch ?? null) : null) ?? (project_config.source != null ? (project_config.source.production_branch ?? 'n/a') : 'n/a')) : (project_config.source != null ? (project_config.source.production_branch ?? 'n/a') : 'n/a')}"
