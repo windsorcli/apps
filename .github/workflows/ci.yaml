@@ -96,10 +96,9 @@ jobs:
           terraform_version: 1.8.5
 
       - name: Install Windsor CLI
-        uses: windsorcli/action@a829ee3c5d9826fd0b31d5e730edcd515644d866 # v0.5.1
+        uses: windsorcli/action@main
         with:
-          ref: main
-          context: demo
+          install-only: "true"
 
       - name: Run Windsor blueprint tests
         run: windsor test
@@ -140,10 +139,9 @@ jobs:
           terraform_version: 1.8.5
 
       - name: Install Windsor CLI
-        uses: windsorcli/action@a829ee3c5d9826fd0b31d5e730edcd515644d866 # v0.5.1
+        uses: windsorcli/action@main
         with:
-          ref: main
-          context: demo
+          install-only: "true"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
