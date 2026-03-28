@@ -40,6 +40,16 @@ locals {
     ])
   }
 
+  environment_variable_sensitive_keys_by_target = {
+    for target in ["development", "preview", "production"] : target => toset([
+      for env in nonsensitive(var.environment_variables) : env.key
+      if contains(env.target, target) && try(env.sensitive, false) == true
+    ])
+  }
+
+  sensitive_env_disallowed_targets = var.sensitive_env_policy.disallowed_targets
+  sensitive_env_allowlist_keys     = var.sensitive_env_policy.allowlist_keys
+
   resolved_fluid                     = try(var.resource_config.fluid, null) != null ? try(var.resource_config.fluid, null) : var.fluid_enabled
   resolved_function_default_cpu_type = try(var.resource_config.function_default_cpu_type, null) != null ? try(var.resource_config.function_default_cpu_type, null) : var.default_cpu_type
   resolved_function_default_timeout  = try(var.resource_config.function_default_timeout, null) != null ? try(var.resource_config.function_default_timeout, null) : var.default_function_timeout
@@ -90,6 +100,53 @@ check "required_env_keys_by_target_present" {
       ])
     ])
     error_message = "All required_env_by_target keys must exist in environment_variables for each corresponding target."
+  }
+}
+
+check "required_sensitive_env_keys_by_target_present" {
+  assert {
+    condition = alltrue([
+      for target, required_keys in var.required_sensitive_env_by_target : alltrue([
+        for required_key in required_keys : contains(local.environment_variable_sensitive_keys_by_target[target], required_key)
+      ])
+    ])
+    error_message = "All required_sensitive_env_by_target keys must exist in environment_variables as sensitive=true for each corresponding target."
+  }
+}
+
+check "no_disallowed_sensitive_env_targets" {
+  assert {
+    condition = alltrue([
+      for env in nonsensitive(var.environment_variables) : alltrue([
+        for target in env.target : !(
+          contains(local.sensitive_env_disallowed_targets, target) &&
+          try(env.sensitive, false) == true &&
+          !contains(local.sensitive_env_allowlist_keys, env.key)
+        )
+      ])
+    ])
+    error_message = "Sensitive environment variables are configured on disallowed targets. Use sensitive_env_policy.allowlist_keys for explicit exceptions."
+  }
+}
+
+check "env_key_pattern_enforced" {
+  assert {
+    condition = alltrue([
+      for env in nonsensitive(var.environment_variables) : (
+        var.env_key_pattern == null ||
+        can(regex(var.env_key_pattern, env.key))
+      )
+    ])
+    error_message = "All environment variable keys must match env_key_pattern when it is set."
+  }
+}
+
+check "env_key_denylist_enforced" {
+  assert {
+    condition = alltrue([
+      for env in nonsensitive(var.environment_variables) : !contains(var.env_key_denylist, env.key)
+    ])
+    error_message = "One or more environment variable keys are present in env_key_denylist."
   }
 }
 

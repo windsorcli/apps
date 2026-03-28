@@ -36,3 +36,8 @@ output "environment_variable_keys_by_target" {
   description = "Environment variable key inventory grouped by Vercel target."
   value       = local.environment_variable_keys_by_target
 }
+
+output "environment_variable_sensitive_keys_by_target" {
+  description = "Sensitive environment variable key inventory grouped by Vercel target."
+  value       = local.environment_variable_sensitive_keys_by_target
+}

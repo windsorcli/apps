@@ -243,6 +243,50 @@ run "runtime_defaults_and_required_env_policy" {
   }
 }
 
+run "sensitive_env_and_key_policy" {
+  command = plan
+
+  variables {
+    project_name     = "windsor-sensitive-policy"
+    env_key_pattern  = "^[A-Z][A-Z0-9_]*$"
+    env_key_denylist = ["PASSWORD", "SECRET_KEY"]
+    sensitive_env_policy = {
+      disallowed_targets = ["preview"]
+      allowlist_keys     = ["PREVIEW_OVERRIDE"]
+    }
+    required_sensitive_env_by_target = {
+      production = ["OPENAI_API_KEY"]
+    }
+    environment_variables = [
+      {
+        key       = "OPENAI_API_KEY"
+        value     = "secret"
+        target    = ["production"]
+        sensitive = true
+      },
+      {
+        key       = "PREVIEW_OVERRIDE"
+        value     = "secret"
+        target    = ["preview"]
+        sensitive = true
+      },
+      {
+        key    = "LLM_PROVIDER"
+        value  = "openai"
+        target = ["production", "preview"]
+      }
+    ]
+  }
+
+  assert {
+    condition = (
+      contains(output.environment_variable_sensitive_keys_by_target.production, "OPENAI_API_KEY") &&
+      contains(output.environment_variable_sensitive_keys_by_target.preview, "PREVIEW_OVERRIDE")
+    )
+    error_message = "Sensitive key inventory output should include expected keys by target."
+  }
+}
+
 run "github_repository_url_normalization" {
   command = plan
 
@@ -403,6 +447,7 @@ run "combined_negative_validation" {
     resource_config = {
       function_default_cpu_type = "ultra"
     }
+    env_key_pattern                         = "["
     protection_bypass_for_automation_secret = "too-short"
     vercel_authentication_deployment_type   = "preview_only"
     password_protection = {
@@ -445,6 +490,7 @@ run "combined_negative_validation" {
     var.git_repository,
     var.skew_protection,
     var.resource_config,
+    var.env_key_pattern,
     var.protection_bypass_for_automation_secret,
     var.vercel_authentication_deployment_type,
     var.password_protection,

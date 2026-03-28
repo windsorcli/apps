@@ -70,6 +70,10 @@ terraform:
       default_function_timeout: ${project_config.providers.vercel.default_function_timeout ?? null}
       allowed_regions: ${project_config.providers.vercel.allowed_regions ?? null}
       required_env_by_target: ${project_config.providers.vercel.required_env_by_target ?? {}}
+      required_sensitive_env_by_target: ${project_config.providers.vercel.required_sensitive_env_by_target ?? {}}
+      sensitive_env_policy: ${project_config.providers.vercel.sensitive_env_policy ?? {}}
+      env_key_pattern: ${project_config.providers.vercel.env_key_pattern ?? null}
+      env_key_denylist: ${project_config.providers.vercel.env_key_denylist ?? []}
 
       domains: ${project_config.domains ?? []}
       environment_variables: "${concat(project_user_env, (project_provenance_enabled ? project_provenance_env : []))}"

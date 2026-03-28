@@ -398,3 +398,72 @@ variable "required_env_by_target" {
     error_message = "required_env_by_target values must only contain non-empty keys."
   }
 }
+
+variable "required_sensitive_env_by_target" {
+  description = "Required sensitive environment variable keys by Vercel target. Keys must be development, preview, or production."
+  type        = map(set(string))
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for target, _ in var.required_sensitive_env_by_target : contains(["development", "preview", "production"], target)
+    ])
+    error_message = "required_sensitive_env_by_target keys must be development, preview, or production."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for _, required_keys in var.required_sensitive_env_by_target : [
+        for key in required_keys : length(trimspace(key)) > 0
+      ]
+    ]))
+    error_message = "required_sensitive_env_by_target values must only contain non-empty keys."
+  }
+}
+
+variable "sensitive_env_policy" {
+  description = "Policy for restricting where sensitive environment variables can be set."
+  type = object({
+    disallowed_targets = optional(set(string), [])
+    allowlist_keys     = optional(set(string), [])
+  })
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for target in var.sensitive_env_policy.disallowed_targets : contains(["development", "preview", "production"], target)
+    ])
+    error_message = "sensitive_env_policy.disallowed_targets must be development, preview, or production."
+  }
+
+  validation {
+    condition = alltrue([
+      for key in var.sensitive_env_policy.allowlist_keys : length(trimspace(key)) > 0
+    ])
+    error_message = "sensitive_env_policy.allowlist_keys must only contain non-empty keys."
+  }
+}
+
+variable "env_key_pattern" {
+  description = "Optional regex pattern that all environment variable keys must match."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.env_key_pattern == null ? true : can(regex(var.env_key_pattern, "TEST_KEY"))
+    error_message = "env_key_pattern must be a valid regex when set."
+  }
+}
+
+variable "env_key_denylist" {
+  description = "Environment variable keys that are not allowed to be set."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for key in var.env_key_denylist : length(trimspace(key)) > 0
+    ])
+    error_message = "env_key_denylist must only contain non-empty keys."
+  }
+}
