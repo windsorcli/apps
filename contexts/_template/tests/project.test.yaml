@@ -124,6 +124,10 @@ cases:
   - name: uses explicit vercel targets for provenance env
     values:
       id: ctx-preview
+      repository:
+        url: ssh://git@github.com/windsorcli/apps.git
+        ref:
+          branch: main
       provider: metal
       ingress: *ingress-disabled
       network: *default-network
@@ -159,6 +163,10 @@ cases:
   # Targets: default provenance scope should include all Vercel deployment targets.
   - name: defaults provenance env to all vercel targets
     values:
+      repository:
+        url: ssh://git@github.com/windsorcli/apps.git
+        ref:
+          branch: main
       provider: metal
       ingress: *ingress-disabled
       network: *default-network
@@ -191,6 +199,10 @@ cases:
   # Repository metadata should feed provenance git values when present.
   - name: maps default repository metadata into provenance env
     values:
+      repository:
+        url: ssh://git@github.com/windsorcli/apps.git
+        ref:
+          branch: main
       provider: metal
       ingress: *ingress-disabled
       network: *default-network
@@ -237,6 +249,10 @@ cases:
   - name: defaults project name from context id
     values:
       id: ctx-default
+      repository:
+        url: ssh://git@github.com/windsorcli/apps.git
+        ref:
+          branch: main
       provider: metal
       ingress: *ingress-disabled
       network: *default-network
