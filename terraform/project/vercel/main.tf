@@ -33,6 +33,32 @@ locals {
     ]) => idx
   }
 
+  environment_variable_keys_by_target = {
+    for target in ["development", "preview", "production"] : target => toset([
+      for env in nonsensitive(var.environment_variables) : env.key
+      if contains(env.target, target)
+    ])
+  }
+
+  resolved_fluid                     = try(var.resource_config.fluid, null) != null ? try(var.resource_config.fluid, null) : var.fluid_enabled
+  resolved_function_default_cpu_type = try(var.resource_config.function_default_cpu_type, null) != null ? try(var.resource_config.function_default_cpu_type, null) : var.default_cpu_type
+  resolved_function_default_timeout  = try(var.resource_config.function_default_timeout, null) != null ? try(var.resource_config.function_default_timeout, null) : var.default_function_timeout
+  resolved_function_default_regions  = try(var.resource_config.function_default_regions, null) != null ? try(var.resource_config.function_default_regions, null) : var.allowed_regions
+
+  effective_resource_config = (
+    (
+      local.resolved_fluid == null &&
+      local.resolved_function_default_cpu_type == null &&
+      local.resolved_function_default_timeout == null &&
+      length(local.resolved_function_default_regions != null ? local.resolved_function_default_regions : toset([])) == 0
+      ) ? null : {
+      fluid                     = local.resolved_fluid
+      function_default_cpu_type = local.resolved_function_default_cpu_type
+      function_default_regions  = length(local.resolved_function_default_regions != null ? local.resolved_function_default_regions : toset([])) > 0 ? local.resolved_function_default_regions : null
+      function_default_timeout  = local.resolved_function_default_timeout
+    }
+  )
+
   # Vercel Git linking expects provider-specific repo slugs (e.g. owner/repo).
   # Normalize common URL and host-prefixed forms into slug-like paths.
   git_repository_repo_normalized = var.git_repository == null ? null : (
@@ -54,6 +80,17 @@ locals {
       )
     )
   )
+}
+
+check "required_env_keys_by_target_present" {
+  assert {
+    condition = alltrue([
+      for target, required_keys in var.required_env_by_target : alltrue([
+        for required_key in required_keys : contains(local.environment_variable_keys_by_target[target], required_key)
+      ])
+    ])
+    error_message = "All required_env_by_target keys must exist in environment_variables for each corresponding target."
+  }
 }
 
 # =============================================================================
@@ -81,7 +118,7 @@ resource "vercel_project" "this" {
   protection_bypass_for_automation_secret = var.protection_bypass_for_automation_secret
 
   skew_protection = var.skew_protection
-  resource_config = var.resource_config
+  resource_config = local.effective_resource_config
 
   git_repository = var.git_repository == null ? null : {
     type              = var.git_repository.type

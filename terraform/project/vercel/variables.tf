@@ -138,6 +138,52 @@ variable "resource_config" {
     )
     error_message = "The resource_config.function_default_cpu_type must be one of standard_legacy, standard, or performance."
   }
+
+  validation {
+    condition = (
+      var.resource_config == null ? true : (
+        try(var.resource_config.function_default_timeout, null) == null ? true : (
+          var.resource_config.function_default_timeout >= 1 &&
+          var.resource_config.function_default_timeout <= 900
+        )
+      )
+    )
+    error_message = "The resource_config.function_default_timeout must be between 1 and 900 seconds when set."
+  }
+}
+
+variable "fluid_enabled" {
+  description = "Optional default for Vercel Fluid mode when resource_config.fluid is not set."
+  type        = bool
+  default     = null
+}
+
+variable "default_cpu_type" {
+  description = "Optional default CPU type when resource_config.function_default_cpu_type is not set."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.default_cpu_type == null ? true : contains(["standard_legacy", "standard", "performance"], var.default_cpu_type)
+    error_message = "The default_cpu_type must be one of standard_legacy, standard, or performance."
+  }
+}
+
+variable "default_function_timeout" {
+  description = "Optional default function timeout in seconds when resource_config.function_default_timeout is not set."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.default_function_timeout == null ? true : (var.default_function_timeout >= 1 && var.default_function_timeout <= 900)
+    error_message = "The default_function_timeout must be between 1 and 900 seconds."
+  }
+}
+
+variable "allowed_regions" {
+  description = "Optional default function regions when resource_config.function_default_regions is not set."
+  type        = set(string)
+  default     = null
 }
 
 # =============================================================================
@@ -328,5 +374,27 @@ variable "environment_variables" {
       ])
     ]))
     error_message = "Environment variable entries must be unique by key, git_branch, target set, and custom_environment_ids set."
+  }
+}
+
+variable "required_env_by_target" {
+  description = "Required environment variable keys by Vercel target. Keys must be development, preview, or production."
+  type        = map(set(string))
+  default     = {}
+
+  validation {
+    condition = alltrue([
+      for target, _ in var.required_env_by_target : contains(["development", "preview", "production"], target)
+    ])
+    error_message = "required_env_by_target keys must be development, preview, or production."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for _, required_keys in var.required_env_by_target : [
+        for key in required_keys : length(trimspace(key)) > 0
+      ]
+    ]))
+    error_message = "required_env_by_target values must only contain non-empty keys."
   }
 }

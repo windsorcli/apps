@@ -58,12 +58,23 @@ jobs:
       - name: Run terraform fmt
         run: terraform fmt -check -recursive
 
-      - name: Checkov GitHub Action
-        uses: bridgecrewio/checkov-action@68260132005eaae0e6f84c7a73cc3b1532f678bf # v12.3058.0
-        with:
-          directory: ./terraform
-          output_format: cli,sarif
-          output_file_path: console,results.sarif
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Generate Terraform plan for Checkov
+        env:
+          VERCEL_API_TOKEN: 0123456789abcdef01234567
+        run: |
+          set -euo pipefail
+          terraform -chdir=terraform/project/vercel init -backend=false -input=false -reconfigure -no-color >/dev/null
+          terraform -chdir=terraform/project/vercel plan -refresh=false -lock=false -input=false -out=tfplan.bin -var='project_name=checkov-ci' -no-color >/dev/null
+          terraform -chdir=terraform/project/vercel show -json tfplan.bin > terraform/project/vercel/tfplan.json
+
+      - name: Run Checkov on Terraform plan
+        run: checkov -f terraform/project/vercel/tfplan.json --framework terraform_plan --config-file .checkov.yaml --output cli,sarif --output-file-path console,results.sarif --quiet --compact
+
+      - name: Run Checkov secrets scan
+        run: checkov -d . --framework secrets --config-file .checkov.yaml --output cli --quiet --compact
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7 # v4.31.9

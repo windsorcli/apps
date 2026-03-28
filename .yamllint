@@ -1,0 +1,7 @@
+extends: default
+
+ignore: |
+  .windsor/
+
+rules:
+  line-length: disable

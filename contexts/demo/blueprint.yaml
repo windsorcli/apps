@@ -10,5 +10,5 @@ repository:
   ref:
     branch: main
 sources:
-- name: template
-  install: true
+  - name: template
+    install: true

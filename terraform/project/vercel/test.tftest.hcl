@@ -45,22 +45,22 @@ run "full_configuration" {
   command = plan
 
   variables {
-    team_id                     = "team_abc"
-    project_name                = "windsor-full"
-    project_framework           = "nextjs"
-    project_root_directory      = "apps/web"
-    build_command               = "pnpm build"
-    install_command             = "pnpm install --frozen-lockfile"
-    dev_command                 = "pnpm dev"
-    ignore_command              = "git diff --quiet HEAD^ HEAD ."
-    output_directory            = ".next"
-    node_version                = "20.x"
-    auto_assign_custom_domains  = true
-    preview_deployments_disabled = false
-    public_source               = false
-    protection_bypass_for_automation = true
+    team_id                                 = "team_abc"
+    project_name                            = "windsor-full"
+    project_framework                       = "nextjs"
+    project_root_directory                  = "apps/web"
+    build_command                           = "pnpm build"
+    install_command                         = "pnpm install --frozen-lockfile"
+    dev_command                             = "pnpm dev"
+    ignore_command                          = "git diff --quiet HEAD^ HEAD ."
+    output_directory                        = ".next"
+    node_version                            = "20.x"
+    auto_assign_custom_domains              = true
+    preview_deployments_disabled            = false
+    public_source                           = false
+    protection_bypass_for_automation        = true
     protection_bypass_for_automation_secret = "12345678901234567890123456789012"
-    skew_protection             = "12 hours"
+    skew_protection                         = "12 hours"
     resource_config = {
       fluid                     = true
       function_default_cpu_type = "standard"
@@ -75,7 +75,7 @@ run "full_configuration" {
     vercel_authentication_deployment_type = "all_deployments"
     password_protection = {
       deployment_type = "only_preview_deployments"
-      password        = "preview-password"
+      password        = "preview-password" # checkov:skip=CKV_SECRET_6: Test fixture only, not a real secret
     }
     trusted_ips = {
       deployment_type = "only_preview_deployments"
@@ -157,9 +157,9 @@ run "expression_logic_null_and_key_derivation" {
         sensitive = false
       },
       {
-        key       = "APP_MODE"
-        value     = "preview-branch"
-        target    = ["preview", "production"]
+        key        = "APP_MODE"
+        value      = "preview-branch"
+        target     = ["preview", "production"]
         git_branch = "feature/login"
       },
       {
@@ -188,6 +188,58 @@ run "expression_logic_null_and_key_derivation" {
   assert {
     condition     = contains(keys(local.environment_variables_by_key), "ONLY_CUSTOM|||env_custom_2")
     error_message = "The uniqueness key should include ONLY_CUSTOM with the custom environment identifier."
+  }
+}
+
+run "runtime_defaults_and_required_env_policy" {
+  command = plan
+
+  variables {
+    project_name             = "windsor-runtime-defaults"
+    fluid_enabled            = true
+    default_cpu_type         = "performance"
+    default_function_timeout = 120
+    allowed_regions          = ["iad1", "sfo1"]
+    required_env_by_target = {
+      production = ["OPENAI_API_KEY", "LLM_PROVIDER"]
+      preview    = ["LLM_PROVIDER"]
+    }
+    environment_variables = [
+      {
+        key    = "OPENAI_API_KEY"
+        value  = "secret"
+        target = ["production"]
+      },
+      {
+        key    = "LLM_PROVIDER"
+        value  = "openai"
+        target = ["production", "preview"]
+      }
+    ]
+  }
+
+  assert {
+    condition     = vercel_project.this.resource_config.function_default_cpu_type == "performance"
+    error_message = "default_cpu_type should be used when resource_config.function_default_cpu_type is not provided."
+  }
+
+  assert {
+    condition     = vercel_project.this.resource_config.function_default_timeout == 120
+    error_message = "default_function_timeout should be used when resource_config.function_default_timeout is not provided."
+  }
+
+  assert {
+    condition     = output.effective_runtime_policy.fluid == true
+    error_message = "effective_runtime_policy should expose the resolved fluid value."
+  }
+
+  assert {
+    condition = (
+      contains(output.environment_variable_keys_by_target.production, "OPENAI_API_KEY") &&
+      contains(output.environment_variable_keys_by_target.production, "LLM_PROVIDER") &&
+      contains(output.environment_variable_keys_by_target.preview, "LLM_PROVIDER")
+    )
+    error_message = "environment_variable_keys_by_target should include keys by target."
   }
 }
 
@@ -264,9 +316,9 @@ run "plan_shape_matches_test_context" {
   command = plan
 
   variables {
-    project_name       = "wm37vl1m"
-    project_framework  = "nextjs"
-    output_directory   = ".next"
+    project_name      = "wm37vl1m"
+    project_framework = "nextjs"
+    output_directory  = ".next"
     environment_variables = [
       {
         key    = "WINDSOR_BLUEPRINT"

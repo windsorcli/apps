@@ -21,3 +21,18 @@ output "environment_variable_ids" {
     for env_key, resource in vercel_project_environment_variable.this : env_key => resource.id
   }
 }
+
+output "effective_runtime_policy" {
+  description = "Effective runtime policy values applied to Vercel project resource configuration."
+  value = {
+    fluid                     = try(local.effective_resource_config.fluid, null)
+    function_default_cpu_type = try(local.effective_resource_config.function_default_cpu_type, null)
+    function_default_regions  = try(local.effective_resource_config.function_default_regions, null)
+    function_default_timeout  = try(local.effective_resource_config.function_default_timeout, null)
+  }
+}
+
+output "environment_variable_keys_by_target" {
+  description = "Environment variable key inventory grouped by Vercel target."
+  value       = local.environment_variable_keys_by_target
+}
