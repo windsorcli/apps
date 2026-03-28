@@ -99,7 +99,7 @@ jobs:
         uses: windsorcli/action@a829ee3c5d9826fd0b31d5e730edcd515644d866 # v0.5.1
         with:
           ref: main
-          install-only: "true"
+          context: local
 
       - name: Run Windsor blueprint tests
         run: windsor test
