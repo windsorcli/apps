@@ -47,7 +47,7 @@ terraform:
       team_id: ${project_config.team_id ?? null}
       project_name: "${project_config.name ?? (id != null ? (context + '-' + id) : context)}"
       project_framework: ${project_config.overrides.framework ?? project_preset.framework}
-      project_root_directory: ${project_config.source.root_directory ?? null}
+      project_root_directory: ${project_config.source != null ? (project_config.source.root_directory ?? 'app') : 'app'}
       build_command: ${project_config.overrides.build_command ?? null}
       install_command: ${project_config.overrides.install_command ?? null}
       dev_command: ${project_config.overrides.dev_command ?? null}
