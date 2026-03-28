@@ -1,0 +1,8 @@
+kind: Blueprint
+apiVersion: blueprints.windsorcli.dev/v1alpha1
+metadata:
+  name: apps
+  description: Base blueprint template for app engines
+sources: []
+terraform: []
+kustomize: []
