@@ -17,7 +17,7 @@ jobs:
             ];
             const prLabels = context.payload.pull_request.labels.map(label => label.name);
             const hasRequiredLabel = prLabels.some(label => requiredLabels.includes(label));
-            
+
             if (!hasRequiredLabel) {
               core.setFailed('Your PR must have at least one of the required labels: ' + requiredLabels.join(', '));
             }

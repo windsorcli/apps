@@ -1,0 +1,184 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  check-tools:shared:
+    desc: Verify shared local tooling is installed
+    silent: true
+    cmds:
+      - 'command -v rg >/dev/null || (echo "Missing required tool: rg" && exit 1)'
+      - 'command -v shellcheck >/dev/null || (echo "Missing required tool: shellcheck" && exit 1)'
+      - 'command -v terraform >/dev/null || (echo "Missing required tool: terraform" && exit 1)'
+
+  check-tools:lint:
+    desc: Verify lint tooling is installed
+    silent: true
+    deps:
+      - check-tools:shared
+    cmds:
+      - |
+        if command -v yamllint >/dev/null 2>&1; then
+          exit 0
+        fi
+        if command -v python3 >/dev/null 2>&1 && python3 -c "import yamllint" >/dev/null 2>&1; then
+          exit 0
+        fi
+        if command -v pipx >/dev/null 2>&1; then
+          exit 0
+        fi
+        echo "Missing required tool: yamllint (install via pipx/pip, e.g. 'pipx install yamllint')"
+        exit 1
+
+  check-tools:sast:
+    desc: Verify SAST tooling is installed
+    silent: true
+    deps:
+      - check-tools:shared
+    cmds:
+      - 'command -v checkov >/dev/null || (echo "Missing required tool: checkov" && exit 1)'
+
+  check-tools:blueprint:
+    desc: Verify blueprint test tooling is installed
+    silent: true
+    cmds:
+      - 'command -v windsor >/dev/null || (echo "Missing required tool: windsor" && exit 1)'
+
+  lint:yaml:
+    desc: Run YAML lint checks
+    silent: true
+    deps:
+      - check-tools:lint
+    cmds:
+      - |
+        yaml_files="$(git ls-files '*.yml' '*.yaml')"
+        if [ -z "$yaml_files" ]; then
+          echo "No YAML files found to check"
+          exit 0
+        fi
+        if command -v yamllint >/dev/null 2>&1; then
+          echo "$yaml_files" | xargs yamllint
+          exit 0
+        fi
+        if command -v python3 >/dev/null 2>&1 && python3 -c "import yamllint" >/dev/null 2>&1; then
+          echo "$yaml_files" | xargs python3 -m yamllint
+          exit 0
+        fi
+        if command -v pipx >/dev/null 2>&1; then
+          echo "$yaml_files" | xargs pipx run --spec yamllint yamllint
+          exit 0
+        fi
+        echo "Missing required tool: yamllint (install via pipx/pip, e.g. 'pipx install yamllint')"
+        exit 1
+
+  lint:shell:
+    desc: Run ShellCheck against shell scripts
+    silent: true
+    cmds:
+      - |
+        shell_files="$(git ls-files '*.sh')"
+        if [ -n "$shell_files" ]; then
+          echo "$shell_files" | xargs shellcheck
+        else
+          echo "No shell scripts found to check"
+        fi
+
+  lint:terraform:
+    desc: Check Terraform formatting
+    silent: true
+    deps:
+      - check-tools:shared
+    cmds:
+      - terraform fmt -check -recursive
+
+  fmt:terraform:
+    desc: Format Terraform files
+    silent: true
+    deps:
+      - check-tools:shared
+    cmds:
+      - terraform fmt -recursive
+
+  fmt:
+    desc: Run available formatters
+    deps:
+      - fmt:terraform
+
+  lint:
+    desc: Run all local lint checks
+    deps:
+      - lint:yaml
+      - lint:shell
+      - lint:terraform
+
+  sast:
+    desc: Run SAST and IaC scanning
+    silent: true
+    deps:
+      - check-tools:sast
+    cmds:
+      - |
+        set -euo pipefail
+        module_dir="terraform/project/vercel"
+        fake_token="${VERCEL_API_TOKEN:-0123456789abcdef01234567}"
+        temp_dir="$(mktemp -d -t checkov-plan.XXXXXX)"
+        plan_bin="$temp_dir/tfplan.bin"
+        plan_json="$temp_dir/tfplan.json"
+        trap 'rm -rf "$temp_dir"' EXIT
+
+        echo "sast: terraform init (offline)"
+        VERCEL_API_TOKEN="$fake_token" terraform -chdir="$module_dir" init -backend=false -input=false -reconfigure -no-color >/dev/null
+        echo "sast: terraform plan (offline)"
+        VERCEL_API_TOKEN="$fake_token" terraform -chdir="$module_dir" plan -refresh=false -lock=false -input=false -out="$plan_bin" -var='project_name=checkov-sast' -no-color >/dev/null
+        terraform -chdir="$module_dir" show -json "$plan_bin" > "$plan_json"
+
+        echo "sast: checkov terraform_plan scan"
+        checkov -f "$plan_json" --framework terraform_plan --config-file .checkov.yaml
+        echo "sast: checkov secrets scan"
+        checkov -d . --framework secrets --config-file .checkov.yaml
+        echo "sast: pass"
+
+  test:blueprint:
+    desc: Run Windsor blueprint tests
+    deps:
+      - check-tools:blueprint
+    cmds:
+      - windsor test
+
+  test:terraform:
+    desc: Run Terraform tests for all test modules
+    deps:
+      - check-tools:shared
+    cmds:
+      - |
+        set -euo pipefail
+        testfiles="$(rg --files -g '**/test.tftest.hcl' terraform)"
+        if [ -z "$testfiles" ]; then
+          echo "No Terraform test files found."
+          exit 1
+        fi
+        while IFS= read -r testfile; do
+          testdir="$(dirname "$testfile")"
+          echo "Running terraform tests in $testdir"
+          (
+            cd "$testdir"
+            terraform init -input=false -reconfigure
+            terraform test -no-color
+          )
+        done <<< "$testfiles"
+
+  test:
+    desc: Run all local tests
+    deps:
+      - test:blueprint
+      - test:terraform
+
+  ci:
+    desc: Run local CI equivalent checks
+    deps:
+      - lint
+      - sast
+      - test

@@ -1,0 +1,12 @@
+registries:
+  - type: standard
+    ref: v4.445.0
+
+packages:
+  - name: hashicorp/terraform@v1.8.5
+  - name: pnpm/pnpm@v10.8.1
+  - name: go-task/task@v3.49.1
+  - name: BurntSushi/ripgrep@15.1.0
+  - name: koalaman/shellcheck@v0.11.0
+  - name: bridgecrewio/checkov@3.2.513
+  - name: pypa/pipx@1.11.0

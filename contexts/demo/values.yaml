@@ -1,0 +1,7 @@
+dns:
+  domain: demo
+id: wm37vl1m
+
+project:
+  source:
+    root_directory: demo

@@ -1,4 +1,56 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:base"]
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "platformAutomerge": true,
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "description": "Pin and update GitHub Actions by tag-compatible SHA",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "versioning": "github-tags",
+      "pinDigests": true,
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "labels": [
+        "dependencies"
+      ]
+    },
+    {
+      "description": "Automerge Terraform provider updates",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "labels": [
+        "terraform",
+        "dependencies"
+      ],
+      "lockFileMaintenance": {
+        "enabled": true
+      }
+    },
+    {
+      "description": "Automerge safe update types",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "labels": [
+        "dependencies"
+      ]
+    }
+  ]
 }

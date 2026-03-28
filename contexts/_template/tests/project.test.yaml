@@ -1,0 +1,304 @@
+# project.yaml facet tests
+# Tests project facet composition for the Vercel driver
+
+# Common configurations
+x-defaults:
+  network: &default-network
+    cidr_block: 10.5.0.0/16
+    loadbalancer_driver: kube-vip
+    loadbalancer_mode: arp
+    loadbalancer_ips:
+      start: "10.5.1.10"
+      end: "10.5.1.100"
+
+  cluster: &default-cluster
+    driver: talos
+    controlplanes:
+      nodes:
+        controlplane-1:
+          endpoint: 10.5.0.10:50000
+          node: 10.5.0.10
+          hostname: controlplane-1
+    workers:
+      volumes:
+        - /var/mnt/local
+
+  ingress-disabled: &ingress-disabled
+    enabled: false
+    driver: nginx
+
+cases:
+  # Minimal: project facet creates Terraform project/vercel block with required inputs.
+  - name: minimal config creates project terraform block via vercel driver
+    values:
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: true
+        driver: vercel
+        stack: nextjs-ts
+        name: sample-app
+        source:
+          provider: github
+          repo: acme/sample-app
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            project_name: sample-app
+            project_framework: nextjs
+            output_directory: .next
+            git_repository:
+              type: github
+              repo: acme/sample-app
+
+  # Full: project facet maps project settings, domains, and env vars to project/vercel.
+  - name: full config maps project settings and domains
+    values:
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: true
+        driver: vercel
+        stack: astro-ts
+        team_id: team_123456
+        name: full-app
+        source:
+          provider: gitlab
+          repo: acme/full-app
+          root_directory: apps/web
+          production_branch: main
+        overrides:
+          framework: nextjs
+          build_command: pnpm build
+          install_command: pnpm install --frozen-lockfile
+          dev_command: pnpm dev
+          output_directory: .next
+          node_version: 22.x
+        policy:
+          public_source: true
+          domain_auto_assign: true
+          preview_mode: disabled
+          automation_bypass: true
+        providers:
+          vercel:
+            protection_bypass_for_automation_secret: "12345678901234567890123456789012"
+            skew_protection: "7 days"
+            vercel_authentication_deployment_type: all_deployments
+        domains:
+          - domain: app.example.com
+          - domain: www.example.com
+            redirect: app.example.com
+            redirect_status_code: 308
+        env:
+          - key: NEXT_PUBLIC_API_URL
+            value: https://api.example.com
+            target: [production, preview]
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            team_id: team_123456
+            project_name: full-app
+            project_framework: nextjs
+            project_root_directory: apps/web
+            preview_deployments_disabled: true
+            protection_bypass_for_automation: true
+            git_repository:
+              type: gitlab
+              repo: acme/full-app
+              production_branch: main
+            domains:
+              - domain: app.example.com
+              - domain: www.example.com
+                redirect: app.example.com
+                redirect_status_code: 308
+
+  # Targets: explicit providers.vercel.targets should scope provenance env entries.
+  - name: uses explicit vercel targets for provenance env
+    values:
+      id: ctx-preview
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: true
+        driver: vercel
+        source:
+          provider: github
+          repo: ssh://git@github.com/windsorcli/apps.git
+          production_branch: main
+        providers:
+          vercel:
+            targets: [preview]
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            environment_variables:
+              - key: WINDSOR_CONTEXT
+                value: test
+                target: [preview]
+              - key: WINDSOR_CONTEXT_ID
+                value: ctx-preview
+                target: [preview]
+              - key: WINDSOR_BLUEPRINT
+                value: project
+                target: [preview]
+              - key: WINDSOR_GIT_REPO
+                value: ssh://git@github.com/windsorcli/apps.git
+                target: [preview]
+              - key: WINDSOR_GIT_REF
+                value: main
+                target: [preview]
+
+  # Targets: default provenance scope should include all Vercel deployment targets.
+  - name: defaults provenance env to all vercel targets
+    values:
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: true
+        driver: vercel
+        source:
+          provider: github
+          repo: ssh://git@github.com/windsorcli/apps.git
+          production_branch: main
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            environment_variables:
+              - key: WINDSOR_CONTEXT
+                value: test
+                target: [development, preview, production]
+              - key: WINDSOR_CONTEXT_ID
+                value: test
+                target: [development, preview, production]
+              - key: WINDSOR_BLUEPRINT
+                value: project
+                target: [development, preview, production]
+              - key: WINDSOR_GIT_REPO
+                value: ssh://git@github.com/windsorcli/apps.git
+                target: [development, preview, production]
+              - key: WINDSOR_GIT_REF
+                value: main
+                target: [development, preview, production]
+
+  # Repository metadata should feed provenance git values when present.
+  - name: maps default repository metadata into provenance env
+    values:
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: true
+        driver: vercel
+        source:
+          provider: github
+          repo: ssh://git@github.com/windsorcli/apps.git
+          production_branch: main
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            environment_variables:
+              - key: WINDSOR_CONTEXT
+                value: test
+                target: [development, preview, production]
+              - key: WINDSOR_CONTEXT_ID
+                value: test
+                target: [development, preview, production]
+              - key: WINDSOR_BLUEPRINT
+                value: project
+                target: [development, preview, production]
+              - key: WINDSOR_GIT_REPO
+                value: ssh://git@github.com/windsorcli/apps.git
+                target: [development, preview, production]
+              - key: WINDSOR_GIT_REF
+                value: main
+                target: [development, preview, production]
+
+  # Edge case: project facet disabled should exclude project terraform block.
+  - name: excludes project terraform block when project facet disabled
+    values:
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: false
+    exclude:
+      terraform:
+        - name: project
+
+  # Defaults: when project config is empty, project_name falls back to context id and stack presets apply in project module.
+  - name: defaults project name from context id
+    values:
+      id: ctx-default
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        source:
+          provider: github
+          repo: ssh://git@github.com/windsorcli/apps.git
+          production_branch: main
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            project_name: test-ctx-default
+            project_framework: nextjs
+            output_directory: .next
+            git_repository:
+              type: github
+              repo: ssh://git@github.com/windsorcli/apps.git
+              production_branch: main
+
+  # Provenance can be disabled to keep project module environment variables fully user-defined.
+  - name: disables provenance env injection when configured
+    values:
+      provider: metal
+      ingress: *ingress-disabled
+      network: *default-network
+      cluster: *default-cluster
+      project:
+        enabled: true
+        stack: nextjs-ts
+        name: no-provenance-app
+        source:
+          provider: github
+          repo: acme/no-provenance-app
+          production_branch: main
+        provenance:
+          enabled: false
+        env:
+          - key: APP_ENV
+            value: local
+            target: [development]
+    expect:
+      terraform:
+        - name: project
+          path: project/vercel
+          inputs:
+            project_name: no-provenance-app
+            environment_variables:
+              - key: APP_ENV
+                value: local
+                target: [development]
